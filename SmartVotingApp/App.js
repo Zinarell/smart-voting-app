@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'; 
-import { StyleSheet, Text, View, ActivityIndicator } from 'react-native'; 
+import { StyleSheet, Text, View, TextInput, Button, Alert } from 'react-native';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'; 
  
 const API_BASE_URL = 'http://192.168.1.XXX:8000'; 

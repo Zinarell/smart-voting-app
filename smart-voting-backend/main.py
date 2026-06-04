@@ -3,7 +3,16 @@ from pydantic import BaseModel
 from typing import Dict, List, Set, Optional 
 import uuid 
  
-app = FastAPI() 
+app = FastAPI()
+
+# То, что мы ждём от фронтенда
+class UserCreate(BaseModel):
+    name: str
+
+# То, что мы отправляем обратно фронтенду
+class UserResponse(BaseModel):
+    user_id: str
+    message: str
  
 # Модели данных (будут расширяться) 
 class User(BaseModel): 
@@ -34,3 +43,21 @@ users_db: Dict[str, User] = {}
 polls_db: Dict[str, Poll] = {} 
 votes_db: List[Vote] = [] # Список всех голосов 
 user_votes_per_poll: Dict[str, Set[str]] = {} # user_id: {poll_id, ...}
+
+
+@app.post("/register", response_model=UserResponse)
+def register_user(user: UserCreate):
+    # 1. Генерируем уникальный ID (hex убирает дефисы, делая строку короче)
+    new_user_id = uuid.uuid4().hex
+    
+    # 2. Сохраняем пользователя в нашу "базу данных" (словарь)
+    # Ключом будет ID, а значением - словарь с данными пользователя
+    users_db[new_user_id] = {
+        "name": user.name
+    }
+    
+    # 3. Возвращаем ответ. FastAPI сам превратит этот словарь в JSON
+    return {
+        "user_id": new_user_id,
+        "message": "Регистрация успешна!"
+    }
