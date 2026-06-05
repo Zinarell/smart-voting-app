@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException 
 from pydantic import BaseModel 
-from typing import Dict, List, Set, Optional 
-import uuid 
+from typing import Dict, List, Set, Optional
+import uuid
+from fastapi.middleware.cors import CORSMiddleware
  
 app = FastAPI()
 
@@ -61,3 +62,11 @@ def register_user(user: UserCreate):
         "user_id": new_user_id,
         "message": "Регистрация успешна!"
     }
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Разрешаем запросы отовсюду (для разработки это ок)
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешаем все методы (GET, POST и т. dist)
+    allow_headers=["*"],
+)
