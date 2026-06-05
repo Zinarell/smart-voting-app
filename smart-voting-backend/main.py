@@ -32,6 +32,10 @@ class Poll(BaseModel):
     is_global: bool = True 
     allowed_group_ids: List[str] = [] 
     is_active: bool = True 
+
+class PollCreate(BaseModel):
+    title: str
+    options: List[str]  # Фронтенд пришлёт просто список текстов
  
 class Vote(BaseModel): 
     user_id: str 
@@ -62,6 +66,35 @@ def register_user(user: UserCreate):
         "user_id": new_user_id,
         "message": "Регистрация успешна!"
     }
+
+@app.post("/polls", response_model=Poll)
+def create_poll(poll_data: PollCreate):
+    # 1. Генерируем ID для самого опроса
+    new_poll_id = uuid.uuid4().hex
+    
+    # 2. Преобразуем список строк в список объектов PollOption с уникальными ID
+    created_options = []
+    for option_text in poll_data.options:
+        option_id = uuid.uuid4().hex
+        created_options.append(PollOption(id=option_id, text=option_text))
+    
+    # 3. Создаём полноценный объект Poll (используем твою существующую модель)
+    new_poll = Poll(
+        id=new_poll_id,
+        title=poll_data.title,
+        options=created_options,
+        is_global=True,          # Значения по умолчанию из твоей модели
+        allowed_group_ids=[],
+        is_active=True
+    )
+    
+    # 4. Сохраняем в "базу данных"
+    polls_db[new_poll_id] = new_poll.model_dump()
+    
+    # 5. Возвращаем созданный опрос
+    return new_poll
+
+
 
 app.add_middleware(
     CORSMiddleware,

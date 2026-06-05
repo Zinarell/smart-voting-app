@@ -4,6 +4,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Config from './config';
+import CreatePollScreen from './Screens/CreatePollScreen.js'
  
 // const API_BASE_URL = 'http://192.168.1.XXX:8000';
 const API_BASE_URL = Config.API_BASE_URL;
@@ -14,6 +15,7 @@ export default function App() {
   const [userId, setUserId] = useState(null); // Сохранённый ID
   const [message, setMessage] = useState(''); // Сообщения об успехе/ошибке
   const [name, setName] = useState('');
+  const [currentScreen, setCurrentScreen] = useState('home'); 
  
   useEffect(() => {
     const checkUser = async () => {
@@ -31,6 +33,7 @@ export default function App() {
     };
     checkUser();
   }, []); 
+  
     const handleRegister = async () => {
     if (!name.trim()) {
       setMessage('Пожалуйста, введите имя');
@@ -61,6 +64,17 @@ export default function App() {
     } catch (error) {
       console.error("Ошибка регистрации:", error);
       setMessage('Ошибка соединения с сервером. Запущен ли бэкенд?');
+    }
+  };
+    const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('userId');
+      setUserId(null);
+      setName('');
+      setMessage('Вы вышли из системы');
+      setCurrentScreen('home');
+    } catch (e) {
+      console.error("Ошибка выхода:", e);
     }
   };
  
@@ -107,6 +121,23 @@ export default function App() {
           <Text style={styles.successText}>Регистрация успешна!</Text>
           <Text style={styles.idText}>Ваш ID: {userId}</Text>
           <Text>Добро пожаловать, {name}!</Text>
+        {/* Кнопка выхода */}
+  <View style={{ marginTop: 20, marginBottom: 20 }}>
+    <Button title="Выйти" onPress={handleLogout} color="#ff5722" />
+  </View>
+
+      {/* Переключатель экранов */}
+      {currentScreen === 'home' ? (
+        <Button title="Создать новый опрос" onPress={() => setCurrentScreen('createPoll')} />
+      ) : (
+        <>
+          <Button title="← Назад к профилю" onPress={() => setCurrentScreen('home')} />
+          <View style={{ marginTop: 20 }}>
+        {/* Вставляем наш новый компонент и передаем функцию, чтобы вернуться назад при успехе */}
+            <CreatePollScreen onPollCreated={() => setCurrentScreen('home')} />
+          </View>
+        </>
+      )}
         </View>
       )}
 
