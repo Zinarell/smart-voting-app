@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react'; 
-import { StyleSheet, Text, View, TextInput, Button, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Button, Alert, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'; 
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import Config from './config';
  
-const API_BASE_URL = 'http://192.168.1.XXX:8000'; 
+// const API_BASE_URL = 'http://192.168.1.XXX:8000';
+const API_BASE_URL = Config.API_BASE_URL;
  
 export default function App() { 
   const [loading, setLoading] = useState(true); 
   const [error, setError] = useState(null); 
   const [userId, setUserId] = useState(null); // Сохранённый ID
   const [message, setMessage] = useState(''); // Сообщения об успехе/ошибке
+  const [name, setName] = useState('');
  
   useEffect(() => {
     const checkUser = async () => {
@@ -22,6 +25,8 @@ export default function App() {
         }
       } catch (e) {
         console.error("Ошибка чтения из AsyncStorage", e);
+      } finally {
+        setLoading(false);
       }
     };
     checkUser();
@@ -38,7 +43,7 @@ export default function App() {
       // Для iOS симулятора или браузера: 'http://localhost:8000/register'
       // Для реального телефона в одной Wi-Fi сети: 'http://192.168.x.x:8000/register' (узнай свой IP)
       
-      const response = await axios.post('http://10.0.2.2:8000/register', {
+      const response = await axios.post(`${API_BASE_URL}/register`, {
         name: name,
       });
 
