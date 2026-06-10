@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Button, ScrollView, Alert } from 'react-native';
 import axios from 'axios';
-import Config from '../config'; // Не забудь импортировать твой конфиг с URL
+import Config from '../config';
+import { v4 as uuidv4 } from 'uuid';
 
+const API_BASE_URL = Config.API_BASE_URL;
 export default function CreatePollScreen({ onPollCreated }) {
   const [title, setTitle] = useState('');
   // Начинаем с одного пустого варианта ответа
-  const [options, setOptions] = useState([{ id: Date.now().toString(), text: '' }]);
+  const [options, setOptions] = useState([{ id: uuidv4(), text: '' }]);
   const [message, setMessage] = useState('');
-  const API_BASE_URL = Config.API_BASE_URL;
+  
 
   // Функция добавления нового поля
-  const addOption = () => {
-    setOptions([...options, { id: Date.now().toString(), text: '' }]);
-  };
+const addOption = () => {
+  setOptions([...options, { id: uuidv4(), text: '' }]);
+};
+
 
   // Функция обновления текста конкретного варианта
   const updateOption = (id, newText) => {
@@ -57,10 +60,10 @@ export default function CreatePollScreen({ onPollCreated }) {
       
       // Очищаем форму
       setTitle('');
-      setOptions([{ id: Date.now().toString(), text: '' }]);
+      setOptions([{ id: uuidv4(), text: '' }]);
       
       // Если передали функцию обратного вызова, вызываем её (например, чтобы вернуться на главный экран)
-      if (onPollCreated) onPollCreated();
+      if (onPollCreated) onPollCreated(response.data.id);
 
     } catch (error) {
       console.error("Ошибка создания опроса:", error);

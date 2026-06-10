@@ -3,8 +3,13 @@ from pydantic import BaseModel
 from typing import Dict, List, Set, Optional
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
+import dotenv
+import os
  
 app = FastAPI()
+
+dotenv.load_dotenv()
+API_BASE_URL = os.getenv('API_BASE_URL')
 
 # То, что мы ждём от фронтенда
 class UserCreate(BaseModel):
@@ -94,6 +99,33 @@ def create_poll(poll_data: PollCreate):
     # 5. Возвращаем созданный опрос
     return new_poll
 
+@app.get("/polls", response_model=List[Poll])
+def get_polls():
+    # list(polls_db.values()) превращает значения словаря в обычный список.
+    # FastAPI сам проверит каждый элемент на соответствие модели Poll и вернет JSON.
+    return list(polls_db.values())
+
+# @app.get("/polls/{poll_id}")
+# def get_poll(poll_id: str):
+#     # poll_id автоматически извлечён из URL
+#     if poll_id not in polls_db:
+#         raise HTTPException(status_code=404, detail="Опрос не найден")
+    
+#     return polls_db[poll_id]
+
+@app.get("/polls/{poll_id}/share-link")
+def get_share_link(poll_id: str):
+    # Проверяем, что опрос существует
+    if poll_id not in polls_db:
+        raise HTTPException(status_code=404, detail="Опрос не найден")
+    
+    # Формируем ссылку (используем твой ngrok URL или IP)
+    share_url = f"{API_BASE_URL}/votingapp?pollId={poll_id}"
+    
+    return {
+        "poll_id": poll_id,
+        "share_link": share_url
+    }
 
 
 app.add_middleware(

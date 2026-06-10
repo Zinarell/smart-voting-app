@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Config from './config';
 import CreatePollScreen from './Screens/CreatePollScreen.js'
+import SharePollScreen from './Screens/SharePollScreen.js';
+import PollListScreen from './Screens/PollListScreen';
  
 // const API_BASE_URL = 'http://192.168.1.XXX:8000';
 const API_BASE_URL = Config.API_BASE_URL;
@@ -15,7 +17,8 @@ export default function App() {
   const [userId, setUserId] = useState(null); // Сохранённый ID
   const [message, setMessage] = useState(''); // Сообщения об успехе/ошибке
   const [name, setName] = useState('');
-  const [currentScreen, setCurrentScreen] = useState('home'); 
+  const [currentScreen, setCurrentScreen] = useState('home');
+  const [createdPollId, setCreatedPollId] = useState(null);
  
   useEffect(() => {
     const checkUser = async () => {
@@ -80,31 +83,26 @@ export default function App() {
  
   if (loading) { 
     return ( 
-      <SafeAreaProvider> 
         <SafeAreaView style={styles.container}> 
           <ActivityIndicator size="large" color="#0000ff" /> 
           <Text>Загрузка...</Text> 
         </SafeAreaView> 
-      </SafeAreaProvider> 
     ); 
   } 
  
   if (error) { 
     return ( 
-      <SafeAreaProvider> 
         <SafeAreaView style={styles.container}> 
           <Text style={styles.errorText}>Ошибка: {error}</Text> 
         </SafeAreaView> 
-      </SafeAreaProvider> 
     ); 
   } 
  
-  return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Smart Voting App</Text>
-
-       {/* Если ID ещё нет, показываем форму регистрации */}
-      {!userId ? (
+  // Если пользователь не зарегистрирован — показываем форму регистрации
+  if (!userId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>Smart Voting App</Text>
         <View style={styles.form}>
           <Text style={styles.label}>Введите ваше имя для регистрации:</Text>
           <TextInput
@@ -115,34 +113,75 @@ export default function App() {
           />
           <Button title="Получить ID" onPress={handleRegister} />
         </View>
-      ) : (
-        // Если ID уже есть, показываем приветствие
-        <View style={styles.success}>
-          <Text style={styles.successText}>Регистрация успешна!</Text>
-          <Text style={styles.idText}>Ваш ID: {userId}</Text>
-          <Text>Добро пожаловать, {name}!</Text>
-        {/* Кнопка выхода */}
-  <View style={{ marginTop: 20, marginBottom: 20 }}>
-    <Button title="Выйти" onPress={handleLogout} color="#ff5722" />
-  </View>
+        {message && <Text style={styles.message}>{message}</Text>}
+      </SafeAreaView>
+    );
+  }
 
-      {/* Переключатель экранов */}
-      {currentScreen === 'home' ? (
-        <Button title="Создать новый опрос" onPress={() => setCurrentScreen('createPoll')} />
-      ) : (
-        <>
-          <Button title="← Назад к профилю" onPress={() => setCurrentScreen('home')} />
-          <View style={{ marginTop: 20 }}>
-        {/* Вставляем наш новый компонент и передаем функцию, чтобы вернуться назад при успехе */}
-            <CreatePollScreen onPollCreated={() => setCurrentScreen('home')} />
-          </View>
-        </>
-      )}
+  // Если пользователь на экране создания опроса
+  if (currentScreen === 'createPoll') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>Smart Voting App</Text>
+        <Button title="← Назад к профилю" onPress={() => setCurrentScreen('home')} />
+        <View style={{ marginTop: 20, width: '100%' }}>
+          <CreatePollScreen onPollCreated={(pollId) => {
+            setCreatedPollId(pollId);
+            setCurrentScreen('share');
+          }} />
         </View>
-      )}
+      </SafeAreaView>
+    );
+  }
 
-      {/* Блок для вывода сообщений об ошибках или статусе */}
-      {message && !userId && <Text style={styles.message}>{message}</Text>}
+  // Если пользователь на экране шаринга
+  if (currentScreen === 'share') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>Smart Voting App</Text>
+        <Button title="← Назад к профилю" onPress={() => setCurrentScreen('home')} />
+        <View style={{ marginTop: 20 }}>
+          <SharePollScreen   
+          pollId={createdPollId} 
+          onBack={() => setCurrentScreen('home')} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // НОВЫЙ ЭКРАН: Список опросов
+  if (currentScreen === 'pollList') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>Активные опросы</Text>
+        <Button title="← Назад к профилю" onPress={() => setCurrentScreen('home')} />
+        <View style={{ marginTop: 20, flex: 1, width: '100%' }}>
+          <PollListScreen />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Если ни одно условие не сработало — показываем главный экран (профиль)
+  return (
+
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>Smart Voting App</Text>
+      <View style={styles.success}>
+        <Text style={styles.successText}>Регистрация успешна!</Text>
+        <Text style={styles.idText}>Ваш ID: {userId}</Text>
+        <Text>Добро пожаловать, {name}!</Text>
+        
+        <View style={{ marginTop: 20, marginBottom: 20 }}>
+          <Button title="Выйти" onPress={handleLogout} color="#ff5722" />
+        </View>
+        
+        {/* Кнопки действий в профиле */}
+        <View style={{ gap: 10 }}>
+            <Button title="Создать новый опрос" onPress={() => setCurrentScreen('createPoll')} />
+            <Button title="Список активных опросов" onPress={() => setCurrentScreen('pollList')} />
+        </View>
+      </View>
     </SafeAreaView>
   );
 } 
@@ -159,6 +198,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 30,
+    
   },
   form: {
     width: '100%',
