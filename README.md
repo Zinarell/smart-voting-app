@@ -16,25 +16,25 @@
 
 ## Запуск приложения
 
-⚠️ **Важно:** Бэкенд и фронтенд должны работать **одновременно** в разных окнах терминала!
+⚠️ **Важно:** Бэкенд, фронтенд и свервер ngrok должны работать **одновременно** в разных окнах терминала!
 
 ### 1. Настройка публичного доступа через ngrok
-1. Скачиваем ngrok с официального сайта: `https://ngrok.com/download`
+1. Скачиваем ngrok с официального сайта: `https://ngrok.com/download` или с Microsoft Store
 2. Регистрируемся на `https://ngrok.com` и копируем Authtoken
 3. Настраиваем ngrok: `ngrok config add-authtoken "<YOUR_AUTHTOKEN>"`
-4. Запускаем ngrok: `ngrok http 8000`
+4. Запускаем ngrok в первом терминале: `ngrok http 8000`
 5. Копируем публичный URL (пример: `https://your-ngrok-url.ngrok-free.dev`)
 
 ### 2. Настройка конфигурации
-6. Создаём файл `config.js` по примеру `config_example.js` и вставляем свой URL из ngrok
+6. Создаём файл `.env` по примеру `.env.example` в папке smart-voting-backend и файл `config.js` по примеру `config_example.js` в папке SmartVotingApp и вставляем свой URL из ngrok
 
 ### 3. Запуск серверов
-7. **В первом терминале** запускаем бэкенд (из папки smart-voting-backend):
+7. Во втором терминале запускаем бэкенд (из папки smart-voting-backend):
    ```bash
    uvicorn main:app --reload
    ```
    Флаг --reload включает автоматическую перезагрузку при изменении кода.
-8. Во втором терминале запускаем фронтенд (из папки SmartVotingApp):
+8. В третьем терминале запускаем фронтенд (из папки SmartVotingApp):
    ```bash
    npx expo start
    ```
