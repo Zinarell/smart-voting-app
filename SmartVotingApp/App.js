@@ -7,6 +7,8 @@ import Config from './config';
 import CreatePollScreen from './Screens/CreatePollScreen.js'
 import SharePollScreen from './Screens/SharePollScreen.js';
 import PollListScreen from './Screens/PollListScreen';
+import VoteScreen from './Screens/VoteScreen';
+import PollStatisticsScreen from './Screens/PollStatisticsScreen';
  
 // const API_BASE_URL = 'http://192.168.1.XXX:8000';
 const API_BASE_URL = Config.API_BASE_URL;
@@ -19,13 +21,16 @@ export default function App() {
   const [name, setName] = useState('');
   const [currentScreen, setCurrentScreen] = useState('home');
   const [createdPollId, setCreatedPollId] = useState(null);
+  const [selectedPollId, setSelectedPollId] = useState(null);
  
   useEffect(() => {
     const checkUser = async () => {
       try {
         const savedId = await AsyncStorage.getItem('userId');
+        const savedName = await AsyncStorage.getItem('userName');
         if (savedId) {
           setUserId(savedId);
+          if (savedName) setName(savedName);
           setMessage('С возвращением!');
         }
       } catch (e) {
@@ -63,6 +68,7 @@ export default function App() {
 
       // Сохраняем ID в память телефона на будущее
       await AsyncStorage.setItem('userId', newUserId);
+      await AsyncStorage.setItem('userName', name);
       
     } catch (error) {
       console.error("Ошибка регистрации:", error);
@@ -121,6 +127,7 @@ export default function App() {
   // Если пользователь на экране создания опроса
   if (currentScreen === 'createPoll') {
     return (
+      
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Smart Voting App</Text>
         <Button title="← Назад к профилю" onPress={() => setCurrentScreen('home')} />
@@ -140,7 +147,7 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Smart Voting App</Text>
         <Button title="← Назад к профилю" onPress={() => setCurrentScreen('home')} />
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 20, flex: 1, width: '100%' }}>
           <SharePollScreen   
           pollId={createdPollId} 
           onBack={() => setCurrentScreen('home')} />
@@ -156,11 +163,45 @@ export default function App() {
         <Text style={styles.title}>Активные опросы</Text>
         <Button title="← Назад к профилю" onPress={() => setCurrentScreen('home')} />
         <View style={{ marginTop: 20, flex: 1, width: '100%' }}>
-          <PollListScreen />
+          <PollListScreen 
+            onVote={(pollId) => {
+            setSelectedPollId(pollId);
+            setCurrentScreen('vote');
+
+          }} />
         </View>
       </SafeAreaView>
     );
   }
+  if (currentScreen === 'vote') {
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <VoteScreen 
+          pollId={selectedPollId} 
+          userId={userId}
+          onBack={() => setCurrentScreen('pollList')}
+          onVoteSuccess={() => setCurrentScreen('statistics')}
+        />
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
+  
+}
+// Если пользователь на экране статистики
+if (currentScreen === 'statistics') {
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>Smart Voting App</Text>
+        <PollStatisticsScreen 
+          pollId={selectedPollId} 
+          onBack={() => setCurrentScreen('pollList')} 
+        />
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
+}
 
   // Если ни одно условие не сработало — показываем главный экран (профиль)
   return (
@@ -184,7 +225,9 @@ export default function App() {
       </View>
     </SafeAreaView>
   );
-} 
+  
+}
+
  
 const styles = StyleSheet.create({
   container: {

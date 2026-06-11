@@ -5,6 +5,9 @@ import uuid
 from fastapi.middleware.cors import CORSMiddleware
 import dotenv
 import os
+import time
+
+from fastapi.responses import HTMLResponse
  
 app = FastAPI()
 
@@ -46,7 +49,13 @@ class Vote(BaseModel):
     user_id: str 
     poll_id: str 
     option_id: str 
-    timestamp: float # Время голосования 
+    timestamp: float # Время голосования
+
+class VoteCreate(BaseModel):
+    user_id: str
+    poll_id: str
+    option_id: str
+
  
 # "База данных" в памяти (для простоты)  
 users_db: Dict[str, User] = {} 
@@ -83,7 +92,7 @@ def create_poll(poll_data: PollCreate):
         option_id = uuid.uuid4().hex
         created_options.append(PollOption(id=option_id, text=option_text))
     
-    # 3. Создаём полноценный объект Poll (используем твою существующую модель)
+    # 3. Создаём полноценный объект Poll 
     new_poll = Poll(
         id=new_poll_id,
         title=poll_data.title,
@@ -105,13 +114,14 @@ def get_polls():
     # FastAPI сам проверит каждый элемент на соответствие модели Poll и вернет JSON.
     return list(polls_db.values())
 
-# @app.get("/polls/{poll_id}")
-# def get_poll(poll_id: str):
-#     # poll_id автоматически извлечён из URL
-#     if poll_id not in polls_db:
-#         raise HTTPException(status_code=404, detail="Опрос не найден")
+@app.get("/polls/{poll_id}", response_model=Poll)
+def get_poll(poll_id: str):
+    # poll_id автоматически извлечён из URL
+    if poll_id not in polls_db:
+        raise HTTPException(status_code=404, detail="Опрос не найден")
     
-#     return polls_db[poll_id]
+    return polls_db[poll_id]
+
 
 @app.get("/polls/{poll_id}/share-link")
 def get_share_link(poll_id: str):
@@ -126,6 +136,223 @@ def get_share_link(poll_id: str):
         "poll_id": poll_id,
         "share_link": share_url
     }
+
+
+@app.post("/vote")
+def cast_vote(vote_data: VoteCreate):
+    # 1. Проверяем, что опрос существует
+    if vote_data.poll_id not in polls_db:
+        raise HTTPException(status_code=404, detail="Опрос не найден")
+    
+    poll = polls_db[vote_data.poll_id]
+    
+    # 2. Проверяем, что вариант ответа существует в этом опросе
+    option_ids = [opt['id'] for opt in poll['options']]
+    if vote_data.option_id not in option_ids:
+        raise HTTPException(status_code=400, detail="Такого варианта ответа не существует")
+    
+    # 3. Проверяем, не голосовал ли уже этот пользователь
+    if vote_data.user_id in user_votes_per_poll and vote_data.poll_id in user_votes_per_poll[vote_data.user_id]:
+        raise HTTPException(status_code=400, detail="Вы уже голосовали в этом опросе")
+    
+    # 4. Создаём объект голоса
+    new_vote = Vote(
+        user_id=vote_data.user_id,
+        poll_id=vote_data.poll_id,
+        option_id=vote_data.option_id,
+        timestamp=time.time()
+    )
+    
+    # 5. Сохраняем голос
+    votes_db.append(new_vote)
+    
+    # 6. Запоминаем, что пользователь проголосовал в этом опросе
+    if vote_data.user_id not in user_votes_per_poll:
+        user_votes_per_poll[vote_data.user_id] = set()
+    user_votes_per_poll[vote_data.user_id].add(vote_data.poll_id)
+    
+    return {
+        "message": "Голос успешно учтён!",
+        "poll_id": vote_data.poll_id,
+        "option_id": vote_data.option_id
+    }
+
+@app.get("/vote-status/{poll_id}/{user_id}")
+def get_vote_status(poll_id: str, user_id: str):
+    # Проверяем, голосовал ли пользователь в этом опросе
+    has_voted = user_id in user_votes_per_poll and poll_id in user_votes_per_poll[user_id]
+    
+    if has_voted:
+        # Находим, за какой вариант он голосовал
+        user_vote = next(
+            (vote for vote in votes_db if vote.user_id == user_id and vote.poll_id == poll_id),
+            None
+        )
+        return {
+            "has_voted": True,
+            "option_id": user_vote.option_id if user_vote else None
+        }
+    else:
+        return {
+            "has_voted": False,
+            "option_id": None
+        }
+    
+@app.get("/polls/{poll_id}/results")
+def get_poll_results(poll_id: str):
+    # 1. Проверяем, что опрос существует
+    if poll_id not in polls_db:
+        raise HTTPException(status_code=404, detail="Опрос не найден")
+    
+    poll = polls_db[poll_id]
+    
+    # 2. Считаем голоса для каждого варианта
+    vote_counts = {}
+    for vote in votes_db:
+        if vote.poll_id == poll_id:
+            if vote.option_id not in vote_counts:
+                vote_counts[vote.option_id] = 0
+            vote_counts[vote.option_id] += 1
+    
+    # 3. Формируем ответ с текстами вариантов
+    results = {}
+    for option in poll['options']:
+        option_id = option['id']
+        option_text = option['text']
+        count = vote_counts.get(option_id, 0)
+        results[option_text] = count
+    
+    return results
+
+@app.get("/votingapp", response_class=HTMLResponse)
+def voting_page(pollId: str):
+    # Проверяем, что опрос существует
+    if pollId not in polls_db:
+        return HTMLResponse(
+            content="<html><body><h1>Опрос не найден</h1></body></html>",
+            status_code=404
+        )
+    
+    poll = polls_db[pollId]
+    
+    # Создаём HTML с кнопками для голосования
+    options_html = ""
+    for option in poll['options']:
+        options_html += f"""
+        <button onclick="vote('{option['id']}')" style="display: block; margin: 10px 0; padding: 15px; font-size: 16px; cursor: pointer;">
+            {option['text']}
+        </button>
+        """
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{poll['title']}</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                max-width: 600px;
+                margin: 50px auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }}
+            h1 {{
+                color: #333;
+                text-align: center;
+            }}
+            button {{
+                width: 100%;
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                transition: background-color 0.3s;
+            }}
+            button:hover {{
+                background-color: #1976D2;
+            }}
+            #message {{
+                margin-top: 20px;
+                padding: 15px;
+                border-radius: 8px;
+                text-align: center;
+                display: none;
+            }}
+            .success {{
+                background-color: #4CAF50;
+                color: white;
+            }}
+            .error {{
+                background-color: #f44336;
+                color: white;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>{poll['title']}</h1>
+        <p style="text-align: center; color: #666;">Выберите вариант:</p>
+        {options_html}
+        <div id="message"></div>
+        
+        <script>
+            const pollId = '{pollId}';
+            
+            async function vote(optionId) {{
+                // Получаем userId из localStorage (или генерируем новый)
+                let userId = localStorage.getItem('userId');
+                if (!userId) {{
+                    userId = 'guest_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('userId', userId);
+                }}
+                
+                try {{
+                    const response = await fetch('/vote', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{
+                            user_id: userId,
+                            poll_id: pollId,
+                            option_id: optionId
+                        }})
+                    }});
+                    
+                    const data = await response.json();
+                    const messageDiv = document.getElementById('message');
+                    
+                    if (response.ok) {{
+                        messageDiv.className = 'success';
+                        messageDiv.textContent = 'Ваш голос учтён!';
+                        messageDiv.style.display = 'block';
+                        
+                        // Блокируем все кнопки
+                        document.querySelectorAll('button').forEach(btn => {{
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                        }});
+                    }} else {{
+                        messageDiv.className = 'error';
+                        messageDiv.textContent = data.detail || 'Ошибка голосования';
+                        messageDiv.style.display = 'block';
+                    }}
+                }} catch (error) {{
+                    const messageDiv = document.getElementById('message');
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Ошибка соединения с сервером';
+                    messageDiv.style.display = 'block';
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    
+    return HTMLResponse(content=html_content)
 
 
 app.add_middleware(

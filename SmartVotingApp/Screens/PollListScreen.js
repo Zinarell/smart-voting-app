@@ -6,7 +6,7 @@ import Config from '../config';
 
 const API_BASE_URL = Config.API_BASE_URL
 
-export default function PollListScreen() {
+export default function PollListScreen({ onVote }) {
   const [polls, setPolls] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,10 +30,12 @@ export default function PollListScreen() {
     return (
       <View style={styles.pollCard}>
         <Text style={styles.pollTitle}>{item.title}</Text>
-        {/* Пока кнопка не работает, как и просили в задании */}
-        <Button title="Проголосовать" onPress={() => alert(`Голосование в: ${item.title}`)} />
+        <Button 
+        title="Проголосовать" 
+        onPress={() => onVote(item.id)}  // Вызываем функцию из пропсов
+      />
       </View>
-    );
+    );  
   };
 
   if (loading) {

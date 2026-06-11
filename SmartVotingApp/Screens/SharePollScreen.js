@@ -91,7 +91,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 30,
   },
   qrContainer: {
     marginBottom: 20,
